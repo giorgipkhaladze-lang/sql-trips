@@ -1,0 +1,28 @@
+WITH flight_counts AS (
+    SELECT p.ID_psg, p.name, COUNT(pt.trip_no) AS flight_count
+    FROM Passenger p
+    LEFT JOIN Pass_in_trip pt ON p.ID_psg = pt.ID_psg
+    GROUP BY p.ID_psg, p.name
+),
+max_flights AS (
+    SELECT MAX(flight_count) AS max_cnt FROM flight_counts
+),
+ordered AS (
+    SELECT 
+        ID_psg,
+        name,
+        flight_count,
+        LAG(name) OVER (ORDER BY ID_psg)  AS prev_name,
+        LEAD(name) OVER (ORDER BY ID_psg) AS next_name,
+        FIRST_VALUE(name) OVER (ORDER BY ID_psg 
+                                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS first_name,
+        LAST_VALUE(name)  OVER (ORDER BY ID_psg 
+                                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_name
+    FROM flight_counts
+)
+SELECT 
+    name,
+    COALESCE(prev_name, last_name) AS prev_passenger,
+    COALESCE(next_name, first_name) AS next_passenger
+FROM ordered o
+JOIN max_flights m ON o.flight_count = m.max_cnt
